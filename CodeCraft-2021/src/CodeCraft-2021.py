@@ -135,10 +135,8 @@ def main():
     # sys.stdout.flush()
     f.close()
     print('hello')
-    print("zqh 杀马特之王")
-    print(",,,,,,")
-    print("牛奶咖啡")
-    print("......")
+    print('world')
+
 
 
 if __name__ == "__main__":
