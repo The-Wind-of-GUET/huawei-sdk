@@ -4,6 +4,11 @@ from collections import defaultdict
 
 
 server_info = dict()
+a_cpu = 0.15 # 硬件性价比系数
+a_mem = 0.15 # 硬件性价比系数
+b_cpu = 0.35 # 运行性价比系数
+b_mem = 0.35 # 运行性价比系数
+
 def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost):
     """
     创建服务器
@@ -12,14 +17,16 @@ def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost
     ab_memory_size = int(memory_size) / 2
     server_cpu_memory_A = np.array([ab_cpu_cores, ab_memory_size])
     server_cpu_memory_B = np.array([ab_cpu_cores, ab_memory_size])
+    cpu_per_hc = float(server_cost) / float(cpu_cores)  # cpu硬件性价比
+    cpu_per_rc = float(power_cost) / float(cpu_cores)   # cpu运行性价比
+    mem_per_hc = float(server_cost) / float(memory_size)    # memory硬件性价比
+    mem_per_rc = float(power_cost) / float(memory_size)     # memory运行性价比
+    com_per = a_cpu * cpu_per_hc + b_cpu * cpu_per_rc + a_mem * mem_per_hc + b_mem * mem_per_rc # 综合性价比
     server_info[server_type] = {'cpu_cores': int(cpu_cores), 'memory_size': int(memory_size),
                                 'server_cost': int(server_cost), 'power_cost': int(power_cost),
                                 'server_cpu_memory_A': server_cpu_memory_A,
                                 'server_cpu_memory_B': server_cpu_memory_B,
-                                'cpu_per_hc': float(server_cost) / float(cpu_cores),
-                                'cpu_per_rc': float(power_cost) / float(cpu_cores),
-                                'mem_per_hc': float(server_cost) / float(memory_size),
-                                'mem_per_rc': float(power_cost) / float(memory_size)
+                                'com_per': com_per
                                 }
 
 vm_info = dict()
@@ -85,11 +92,8 @@ def calculate_capacity(day, op_list, vm_info, survival_vm):
 
 
 def performance(server_info):
-    s_cpu_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_hc'])
-    s_cpu_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_rc'])
-    s_mem_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_hc'])
-    s_mem_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_rc'])
-    return s_cpu_per_hc_list, s_cpu_per_rc_list, s_mem_per_hc_list, s_mem_per_rc_list
+    com_per_list = sorted(server_info.items(), key=lambda s: s[1]['com_per'])
+    return com_per_list
 
 
 def expansion():
