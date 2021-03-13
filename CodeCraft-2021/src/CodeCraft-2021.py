@@ -85,10 +85,10 @@ def calculate_capacity(day, op_list, vm_info, survival_vm):
 
 
 def performance(server_info):
-    s_cpu_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_hc'], reverse=True)
-    s_cpu_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_rc'], reverse=True)
-    s_mem_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_hc'], reverse=True)
-    s_mem_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_rc'], reverse=True)
+    s_cpu_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_hc'])
+    s_cpu_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_rc'])
+    s_mem_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_hc'])
+    s_mem_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_rc'])
     return s_cpu_per_hc_list, s_cpu_per_rc_list, s_mem_per_hc_list, s_mem_per_rc_list
 
 
