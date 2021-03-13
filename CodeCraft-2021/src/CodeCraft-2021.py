@@ -16,10 +16,10 @@ def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost
                                 'server_cost': int(server_cost), 'power_cost': int(power_cost),
                                 'server_cpu_memory_A': server_cpu_memory_A,
                                 'server_cpu_memory_B': server_cpu_memory_B,
-                                'cpu_per': [float(server_cost) / float(cpu_cores),
-                                            float(power_cost) / float(cpu_cores)],
-                                'mem_per': [float(server_cost) / float(memory_size),
-                                            float(power_cost) / float(memory_size)]
+                                'cpu_per_hc': float(server_cost) / float(cpu_cores),
+                                'cpu_per_rc': float(power_cost) / float(cpu_cores),
+                                'mem_per_hc': float(server_cost) / float(memory_size),
+                                'mem_per_rc': float(power_cost) / float(memory_size)
                                 }
 
 vm_info = dict()
@@ -85,9 +85,11 @@ def calculate_capacity(day, op_list, vm_info, survival_vm):
 
 
 def performance(server_info):
-    s_cpu_per_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per'])
-    s_mem_per_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per'])
-    return s_cpu_per_list, s_mem_per_list
+    s_cpu_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_hc'], reverse=True)
+    s_cpu_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['cpu_per_rc'], reverse=True)
+    s_mem_per_hc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_hc'], reverse=True)
+    s_mem_per_rc_list = sorted(server_info.items(), key=lambda s: s[1]['mem_per_rc'], reverse=True)
+    return s_cpu_per_hc_list, s_cpu_per_rc_list, s_mem_per_hc_list, s_mem_per_rc_list
 
 
 def expansion():
@@ -130,7 +132,7 @@ def main():
     for day in range(int(request_days)):
         need_cpu, need_memory = calculate_capacity(day + 1, op_list, vm_info, survival_vm)
         # print('-day %d, -need_cpu: %d, -need_mem: %d'% (day+1, need_cpu, need_memory))
-    s_cpu_per_list, s_mem_per_list = performance(server_info)
+    s_cpu_per_hc_list, s_cpu_per_rc_list, s_mem_per_hc_list, s_mem_per_rc_list = performance(server_info)
     # to write standard output
     # sys.stdout.flush()
     f.close()
