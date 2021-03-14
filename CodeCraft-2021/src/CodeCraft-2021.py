@@ -27,7 +27,9 @@ def generate_server(server_type: str, cpu_cores: str, memory_size: str, server_c
     cpu_per_rc = float(power_cost) / float(cpu_cores)   # cpu运行性价比
     mem_per_hc = float(server_cost) / float(memory_size)    # memory硬件性价比
     mem_per_rc = float(power_cost) / float(memory_size)     # memory运行性价比
-    com_per = A_CPU * cpu_per_hc + B_CPU * cpu_per_rc + A_MEM * mem_per_hc + B_MEM * mem_per_rc # 综合性价比
+    com_per = ((float(server_cost)/float(cpu_cores))*float(cpu_cores)) / (int(memory_size)+int(cpu_cores)) \
+              + ((float(server_cost)/float(memory_size))*float(memory_size)) / (int(memory_size)+int(cpu_cores))
+    # com_per = A_CPU * cpu_per_hc + B_CPU * cpu_per_rc + A_MEM * mem_per_hc + B_MEM * mem_per_rc # 综合性价比
     SERVER_INFO[server_type] = {'cpu_cores': int(cpu_cores), 'memory_size': int(memory_size),
                                 'server_cost': int(server_cost), 'power_cost': int(power_cost),
                                 'server_cpu_memory_a': server_cpu_memory_a,
@@ -114,6 +116,23 @@ def sort_performance(SERVER_INFO:dict) -> list:
     com_per_list = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
     return com_per_list
 
+def get_per_vim_infos(vim_name):
+    # VM_INFO[vim_name]["vm_cpu_cores"],VM_INFO[vim_name]["vm_memory_size"],VM_INFO[vim_name]["single_or_double"]
+    return VM_INFO[vim_name]["vm_cpu_cores"],\
+           VM_INFO[vim_name]["vm_memory_size"],\
+           VM_INFO[vim_name]["single_or_double"]
+
+def assign_to_server():
+    pass
+
+def distribution():
+    for i in range(1,len(OP_LIST)+1):
+        for per_request in OP_LIST[i]:
+            command,vim_name,vim_id = per_request[0],per_request[1],per_request[2]
+            per_vim_infos = get_per_vim_infos(vim_name)
+            assign_to_server(per_vim_infos)
+            import time
+            time.sleep(30)
 
 def expansion():
     pass
@@ -156,6 +175,8 @@ def main():
         need_cpu, need_memory = calculate_capacity(day + 1, OP_LIST, VM_INFO, SURVIVAL_VM)
         # print('-day %d, -need_cpu: %d, -need_mem: %d'% (day+1, need_cpu, need_memory))
     com_per_list = sort_performance(SERVER_INFO)
+
+    distribution()
     # to write standard output
     # sys.stdout.flush()
     f.close()
