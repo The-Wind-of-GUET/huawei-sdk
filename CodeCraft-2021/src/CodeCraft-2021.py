@@ -113,8 +113,9 @@ def sort_performance(SERVER_INFO:dict) -> list:
     :param SERVER_INFO: 服务器信息字典
     :return: com_per_list排好的列表
     """
-    com_per_list = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
-    return com_per_list
+    # com_per_list = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
+    server_info = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
+    return server_info
 
 def get_per_vim_infos(vim_name):
     # VM_INFO[vim_name]["vm_cpu_cores"],VM_INFO[vim_name]["vm_memory_size"],VM_INFO[vim_name]["single_or_double"]
@@ -122,17 +123,115 @@ def get_per_vim_infos(vim_name):
            VM_INFO[vim_name]["vm_memory_size"],\
            VM_INFO[vim_name]["single_or_double"]
 
-def assign_to_server():
-    pass
+def assign_to_server(per_vim_infos):
+    # 双节点
+    if per_vim_infos[2]:
+        cpu_size = per_vim_infos[0] // 2
+        memory_size = per_vim_infos[1] // 2
+    else:
+        cpu_size = per_vim_infos[0]
+        memory_size = per_vim_infos[1]
+    for server_name,server_infos in SERVER_INFO.items():
+        SERVER_INFO[server_name]["server_cpu_memory_a"]
+
+class ServerRecord:
+    """
+    记录分配的服务器信息
+    """
+    def __init__(self):
+        self.server_name = None
+        self.num = 0
+        self.a = None
+        self.b = None
+        self.vim_id = {}
+
+def dynamic_record_server_infos(server_no):
+    """
+    初始化参数，方便进行动态规划
+    :return:
+    """
+    server = ServerRecord()
+    server.server_name = SERVER_INFO[server_no][0]
+    server.num = 1
+    server.a = (SERVER_INFO[server_no][1]["server_cpu_memory_a"][0],SERVER_INFO[server_no][1]["server_cpu_memory_a"][1])
+    server.b = (SERVER_INFO[server_no][1]["server_cpu_memory_b"][0],SERVER_INFO[server_no][1]["server_cpu_memory_b"][1])
+    return server
+
+def dynamic_record_server_costs(server_no,day):
+    return SERVER_INFO[server_no][1]["server_cost"]\
+           +SERVER_INFO[server_no][1]["power_cost"]*day
 
 def distribution():
-    for i in range(1,len(OP_LIST)+1):
-        for per_request in OP_LIST[i]:
-            command,vim_name,vim_id = per_request[0],per_request[1],per_request[2]
-            per_vim_infos = get_per_vim_infos(vim_name)
-            assign_to_server(per_vim_infos)
-            import time
-            time.sleep(30)
+    RANK_FLAG = True
+    CHOOSE_SERVERS_TYPE = 1  # 当前能选的服务器
+    DSITRIBUTE_SERVER_INFO  = []  # 保存已经分配的服务器系信息
+    # SERVER_COST = []  # 记录当前需要服务器的开支（成本+能耗）
+    DSITRIBUTE_SERVER_INFO.append(dynamic_record_server_infos(0))
+    SERVER_COST = dynamic_record_server_costs(0)
+    # add_request_single,add_request_double,del_request = dict(),dict(),[]
+    for day in range(1,len(OP_LIST)+1):
+        add_request_single, add_request_double, del_request = [], [], []  # add_request
+        # per_total_cpu = sum([VM_INFO[per_request[1]]["vm_cpu_cores"] for per_request in OP_LIST[day] if len(per_request) == 3])
+        # per_total_memory = sum([VM_INFO[per_request[1]]["vm_memory_size"]  for per_request in OP_LIST[day] if (len(per_request) == 3)])
+        # print(per_total_cpu,per_total_memory)
+        # 计算cpu/memory的比值
+        # if (per_total_cpu / per_total_memory) < 1:
+        #     RANK_FLAG = False
+        for per_request in OP_LIST[day]:
+            if len(per_request) == 3:
+                command, vim_name, vim_id = per_request[0], per_request[1], per_request[2]
+                vim_cpu_size, vim_memory_size, single_or_double = get_per_vim_infos(vim_name)
+                if single_or_double:
+                    add_request_double.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
+                else:
+                    add_request_single.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
+                # add_request.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
+            else:
+                command,vim_id = per_request[0],per_request[1]
+                del_request.append(vim_id)
+                # del_request([vim_id,vim_name])
+        # True:按cpu排序,False:按memory排序（升序）
+        # if RANK_FLAG:
+        #     add_request_single = dict(sorted(add_request_single.items(),key=lambda x:x[1][0]))
+        #     add_request_double = dict(sorted(add_request_double.items(), key=lambda x: x[1][0]))
+        # else:
+        #     add_request_single = dict(sorted(add_request_single.items(), key=lambda x: x[1][1]))
+        #     add_request_double = dict(sorted(add_request_double.items(), key=lambda x: x[1][1]))
+        # 先添加双节点
+        SERVER_COST = []
+        for add_double_vim_infos in add_request_double:
+            cpu_size = add_request_double[1] // 2
+            memory_size = add_request_double[2] // 2
+            IS_NEED_ADD_SERVER = True
+            # if cpu_size < SERVER_INFO[0]
+            for obj in DSITRIBUTE_SERVER_INFO:
+                if (cpu_size,memory_size) < obj.a and (cpu_size,memory_size) < obj.b:
+                    obj.a = (obj.a[0] - cpu_size,obj.a[1] - memory_size)
+                    obj.b = (obj.b[0] - cpu_size,obj.b[1] - memory_size)
+                    obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
+                    IS_NEED_ADD_SERVER = False
+
+                    break
+            # 需要添加服务器
+            if IS_NEED_ADD_SERVER:
+                CHOOSE_SERVERS_TYPE += 1
+                min_cost,add_server_no = float("inf"),0
+                # 选择最优的服务器
+                for server_no in range(CHOOSE_SERVERS_TYPE):
+                    temp_cost = dynamic_record_server_costs(server_no, day)
+                    if min_cost > temp_cost:
+                        min_cost = temp_cost
+                        add_server_no  = server_no
+                server = dynamic_record_server_infos(server_no)  # 开辟新的服务器
+                DSITRIBUTE_SERVER_INFO.append(server)
+                pass
+                pass
+            # command,vim_name,vim_id = per_request[0],per_request[1],per_request[2]
+            # vim_cpu_size,vim_memory_size,single_or_double = get_per_vim_infos(vim_name)
+            # assign_to_server(per_vim_infos)
+            # import time
+            # time.sleep(30)
+            pass
 
 def expansion():
     pass
@@ -171,19 +270,23 @@ def main():
                 operation_read(day, del_op, vm_id=int(vm_id))
 
     # process
-    for day in range(int(request_days)):
-        need_cpu, need_memory = calculate_capacity(day + 1, OP_LIST, VM_INFO, SURVIVAL_VM)
-        # print('-day %d, -need_cpu: %d, -need_mem: %d'% (day+1, need_cpu, need_memory))
-    com_per_list = sort_performance(SERVER_INFO)
+    # for day in range(int(request_days)):
+    #     need_cpu, need_memory = calculate_capacity(day + 1, OP_LIST, VM_INFO, SURVIVAL_VM)
+    #     # print('-day %d, -need_cpu: %d, -need_mem: %d'% (day+1, need_cpu, need_memory))
+    global SERVER_INFO
+    SERVER_INFO= sort_performance(SERVER_INFO)
+    print(SERVER_INFO[0:5][0][1])
+    print(SERVER_INFO[0:5][0][0])
+    # for k,v in SERVER_INFO.items():
+    #     print(k,v)
+    #     import time
+    #     time.sleep(0.5)
 
     distribution()
-    # to write standard output
-    # sys.stdout.flush()
     f.close()
-    print('hello')
-    print('world')
 
 
 
 if __name__ == "__main__":
+    print((3,2)<(2,2))
     main()
