@@ -161,6 +161,13 @@ def dynamic_record_server_costs(server_no,day):
     return SERVER_INFO[server_no][1]["server_cost"]\
            +SERVER_INFO[server_no][1]["power_cost"]*day
 
+
+def operator_double_vim():
+    pass
+
+
+def operator_single_vim():
+    pass
 def distribution():
     RANK_FLAG = True
     CHOOSE_SERVERS_TYPE = 1  # 当前能选的服务器
@@ -210,7 +217,6 @@ def distribution():
                     obj.b = (obj.b[0] - cpu_size,obj.b[1] - memory_size)
                     obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
                     IS_NEED_ADD_SERVER = False
-
                     break
             # 需要添加服务器
             if IS_NEED_ADD_SERVER:
@@ -224,6 +230,7 @@ def distribution():
                         add_server_no  = server_no
                 server = dynamic_record_server_infos(server_no)  # 开辟新的服务器
                 DSITRIBUTE_SERVER_INFO.append(server)
+        for add
                 pass
                 pass
             # command,vim_name,vim_id = per_request[0],per_request[1],per_request[2]
