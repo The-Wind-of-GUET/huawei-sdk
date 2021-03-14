@@ -16,8 +16,8 @@ def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost
     global SERVER_INFO
     ab_cpu_cores = int(cpu_cores) / 2
     ab_memory_size = int(memory_size) / 2
-    server_cpu_memory_A = np.array([ab_cpu_cores, ab_memory_size])
-    server_cpu_memory_B = np.array([ab_cpu_cores, ab_memory_size])
+    server_cpu_memory_a = np.array([ab_cpu_cores, ab_memory_size])
+    server_cpu_memory_b = np.array([ab_cpu_cores, ab_memory_size])
     cpu_per_hc = float(server_cost) / float(cpu_cores)  # cpu硬件性价比
     cpu_per_rc = float(power_cost) / float(cpu_cores)   # cpu运行性价比
     mem_per_hc = float(server_cost) / float(memory_size)    # memory硬件性价比
@@ -25,8 +25,8 @@ def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost
     com_per = A_CPU * cpu_per_hc + B_CPU * cpu_per_rc + A_MEM * mem_per_hc + B_MEM * mem_per_rc # 综合性价比
     SERVER_INFO[server_type] = {'cpu_cores': int(cpu_cores), 'memory_size': int(memory_size),
                                 'server_cost': int(server_cost), 'power_cost': int(power_cost),
-                                'server_cpu_memory_A': server_cpu_memory_A,
-                                'server_cpu_memory_B': server_cpu_memory_B,
+                                'server_cpu_memory_a': server_cpu_memory_a,
+                                'server_cpu_memory_b': server_cpu_memory_b,
                                 'com_per': com_per
                                 }
 
