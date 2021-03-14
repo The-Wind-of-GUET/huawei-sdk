@@ -3,15 +3,20 @@ import numpy as np
 from collections import defaultdict
 
 
-SERVER_INFO = dict()
+SERVER_INFO = dict()  # 服务器信息字典 {服务器名:{CPU核数: ,内存大小: ,硬件成本: ,运行成本: ,综合性价比: }}
 A_CPU = 0.15 # 硬件性价比系数
 A_MEM = 0.15 # 硬件性价比系数
 B_CPU = 0.35 # 运行性价比系数
 B_MEM = 0.35 # 运行性价比系数
-
 def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost):
     """
-    创建服务器
+    创建服务器信息
+    :param server_type: 服务器种类名
+    :param cpu_cores: 服务器CPU核数
+    :param memory_size: 服务器MEMORY大小
+    :param server_cost: 服务器硬件成本
+    :param power_cost: 服务器运行成本
+    :return: 无
     """
     global SERVER_INFO
     ab_cpu_cores = int(cpu_cores) / 2
@@ -30,23 +35,32 @@ def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost
                                 'com_per': com_per
                                 }
 
-VM_INFO = dict()
+VM_INFO = dict()    # 虚拟机信息字典{虚拟机名:{核数: ,内存大小: ,单/双节点: }}
 def generate_vm(vm_type, vm_cpu_cores, vm_memory_size, single_or_double):
     """
-    创建虚拟机
+    创建虚拟机信息
+    :param vm_type: 虚拟机种类名
+    :param vm_cpu_cores: 虚拟机CPU核数
+    :param vm_memory_size: 虚拟机MEMORY大小
+    :param single_or_double: 单节点还是双节点
+    :return: 无
     """
     global VM_INFO
     VM_INFO[vm_type] = {'vm_cpu_cores': int(vm_cpu_cores), 'vm_memory_size': int(vm_memory_size),
                         'single_or_double': int(single_or_double)}
 
 
-OP_LIST = defaultdict(list)
+OP_LIST = defaultdict(list)  # 每天的操作字典 {day:[每天的操作]}
 def operation_read(day, op, **kwargs):
     """
     将操作添加到请求列表
+    :param day: 第day天
+    :param op: 操作指令 'add' or 'del'
+    :param kwargs: 接受关键字参数，'vm_type'
+    :return: 无
     """
     global OP_LIST
-    vm_type = kwargs.get('vm_type')
+    vm_type = kwargs.get('vm_type')  # 不是add操作则没有vm_type
     vm_id = kwargs['vm_id']
     if vm_type:
         OP_LIST[day + 1].append([op, vm_type.strip(), int(vm_id)])
@@ -54,10 +68,13 @@ def operation_read(day, op, **kwargs):
         OP_LIST[day + 1].append([op, int(vm_id)])
 
 
-SURVIVAL_VM = dict()
+SURVIVAL_VM = dict()  # 存活虚拟机字典{虚拟机ID:虚拟机种类}
 def add_vm_operation(vm_type, vm_id):
     """
     增加虚拟机操作
+    :param vm_type: 虚拟机种类名
+    :param vm_id: 虚拟机ID
+    :return: 无
     """
     SURVIVAL_VM[int(vm_id)] = vm_type
 
@@ -65,11 +82,13 @@ def add_vm_operation(vm_type, vm_id):
 def del_vm_operation(vm_id):
     """
     删除虚拟机操作
+    :param vm_id: 虚拟机ID
+    :return: 无
     """
     SURVIVAL_VM.pop(int(vm_id))
 
 
-need_cpu = need_memory = 0
+need_cpu = need_memory = 0  # 每天请求需要的CPU和内存数
 def calculate_capacity(day, OP_LIST, VM_INFO, SURVIVAL_VM):
     global need_cpu, need_memory
     yesterday_req = OP_LIST[day]
@@ -86,6 +105,11 @@ def calculate_capacity(day, OP_LIST, VM_INFO, SURVIVAL_VM):
 
 
 def sort_performance(SERVER_INFO):
+    """
+    根据综合性价比排序
+    :param SERVER_INFO: 服务器信息字典
+    :return: com_per_list排好的列表
+    """
     com_per_list = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
     return com_per_list
 
