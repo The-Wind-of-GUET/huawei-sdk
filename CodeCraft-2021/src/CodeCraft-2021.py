@@ -8,7 +8,7 @@ A_CPU = 0.15 # 硬件性价比系数
 A_MEM = 0.15 # 硬件性价比系数
 B_CPU = 0.35 # 运行性价比系数
 B_MEM = 0.35 # 运行性价比系数
-def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost):
+def generate_server(server_type:str, cpu_cores:str, memory_size:str, server_cost:str, power_cost:str):
     """
     创建服务器信息
     :param server_type: 服务器种类名
@@ -35,8 +35,9 @@ def generate_server(server_type, cpu_cores, memory_size, server_cost, power_cost
                                 'com_per': com_per
                                 }
 
+
 VM_INFO = dict()    # 虚拟机信息字典{虚拟机名:{核数: ,内存大小: ,单/双节点: }}
-def generate_vm(vm_type, vm_cpu_cores, vm_memory_size, single_or_double):
+def generate_vm(vm_type:str, vm_cpu_cores:str, vm_memory_size:str, single_or_double:str):
     """
     创建虚拟机信息
     :param vm_type: 虚拟机种类名
@@ -51,7 +52,7 @@ def generate_vm(vm_type, vm_cpu_cores, vm_memory_size, single_or_double):
 
 
 OP_LIST = defaultdict(list)  # 每天的操作字典 {day:[每天的操作]}
-def operation_read(day, op, **kwargs):
+def operation_read(day:int, op:str, **kwargs):
     """
     将操作添加到请求列表
     :param day: 第day天
@@ -69,7 +70,7 @@ def operation_read(day, op, **kwargs):
 
 
 SURVIVAL_VM = dict()  # 存活虚拟机字典{虚拟机ID:虚拟机种类}
-def add_vm_operation(vm_type, vm_id):
+def add_vm_operation(vm_type:str, vm_id:int):
     """
     增加虚拟机操作
     :param vm_type: 虚拟机种类名
@@ -89,7 +90,7 @@ def del_vm_operation(vm_id):
 
 
 need_cpu = need_memory = 0  # 每天请求需要的CPU和内存数
-def calculate_capacity(day, OP_LIST, VM_INFO, SURVIVAL_VM):
+def calculate_capacity(day:int, OP_LIST:dict, VM_INFO:dict, SURVIVAL_VM:dict) -> (int,int):
     global need_cpu, need_memory
     yesterday_req = OP_LIST[day]
     for req in yesterday_req:
@@ -104,7 +105,7 @@ def calculate_capacity(day, OP_LIST, VM_INFO, SURVIVAL_VM):
     return need_cpu, need_memory
 
 
-def sort_performance(SERVER_INFO):
+def sort_performance(SERVER_INFO:dict) -> list:
     """
     根据综合性价比排序
     :param SERVER_INFO: 服务器信息字典
