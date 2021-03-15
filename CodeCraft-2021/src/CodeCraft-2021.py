@@ -123,6 +123,7 @@ class ServerRecord:
     """
     def __init__(self):
         self.server_name = None
+        self.running_state = True
         self.num = 0
         self.a = None
         self.b = None
@@ -176,11 +177,10 @@ def dynamic_recycle_server(obj,del_vim_infos,IS_A_OR_B):
     回收服务器资源
     :return:
     """
-    # print("回收服务器名：",obj.sever_name)
     recycle_cpu_size  = del_vim_infos[1]
     recycle_memory_size = del_vim_infos[2]
-    # print("回收服务器名：", obj.server_name,recycle_cpu_size,recycle_memory_size,del_vim_infos[-1],IS_A_OR_B[del_vim_infos[0]])
-    # print(obj.a,obj.b)
+    print("回收服务器名：", obj.server_name,recycle_cpu_size,recycle_memory_size,del_vim_infos[-1],IS_A_OR_B[del_vim_infos[0]])
+    print(obj.a,obj.b)
     # 双节点
     if del_vim_infos[-1]:
         recycle_cpu_size = recycle_cpu_size //2
@@ -193,7 +193,7 @@ def dynamic_recycle_server(obj,del_vim_infos,IS_A_OR_B):
             obj.a = (obj.a[0] + recycle_cpu_size,obj.a[1] + recycle_memory_size)
         else:
             obj.b = (obj.b[0] + recycle_cpu_size, obj.b[1] + recycle_memory_size)
-    # print(obj.a,obj.b)
+    print(obj.a,obj.b)
 
 def dynamic_record_server_costs(server_no,day):
     """
@@ -308,6 +308,7 @@ def operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE,day):
     return IS_A_OR_B
 
 def opreator_del_vim(del_request,IS_A_OR_B):
+    print("...")
     """
     删除虚拟机
     """
@@ -319,7 +320,6 @@ def opreator_del_vim(del_request,IS_A_OR_B):
         # 寻找挂载虚拟机的服务器
         for obj in DSITRIBUTE_SERVER_LIST:
             if del_vim_infos[0] in list(obj.vim_id.keys()):
-                # print("...")
                 del obj.vim_id[del_vim_infos[0]]  # 删除挂载的节点
                 dynamic_recycle_server(obj,del_vim_infos,IS_A_OR_B)  # 更新当前服务器的资源
                 break
@@ -373,11 +373,12 @@ def distribution():
         #     add_request_double = dict(sorted(add_request_double.items(), key=lambda x: x[1][1]))
         # 先添加双节点
         # SERVER_COST = []
+        print(del_request)
         operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE,day)  # 双节点添加
         test_block()
         IS_A_OR_B = operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE,day)  # 单节点添加
         test_block()
-        if len(del_request) != 0:
+        if len(del_request) > 0:
             opreator_del_vim(del_request,IS_A_OR_B)  # 删除
         # test_block()
         import time
@@ -453,7 +454,7 @@ def main():
 
 
     global SERVER_INFO
-    SERVER_INFO= sort_performance(SERVER_INFO)  # 按照性价比进行排序
+    SERVER_INFO = sort_performance(SERVER_INFO)  # 按照性价比进行排序
     f.close()
     distribution()  # 1、服务器资源购买分配
 
