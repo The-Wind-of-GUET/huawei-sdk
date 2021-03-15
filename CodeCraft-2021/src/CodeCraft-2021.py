@@ -451,6 +451,7 @@ def main():
                 del_op, vm_id = request_content[1:-1].split(',')
                 operation_read(day, del_op, vm_id=int(vm_id))
 
+
     global SERVER_INFO
     SERVER_INFO= sort_performance(SERVER_INFO)  # 按照性价比进行排序
     f.close()
