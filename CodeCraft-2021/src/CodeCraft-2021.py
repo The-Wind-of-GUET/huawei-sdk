@@ -27,9 +27,9 @@ def generate_server(server_type: str, cpu_cores: str, memory_size: str, server_c
     cpu_per_rc = float(power_cost) / float(cpu_cores)   # cpu运行性价比
     mem_per_hc = float(server_cost) / float(memory_size)    # memory硬件性价比
     mem_per_rc = float(power_cost) / float(memory_size)     # memory运行性价比
-    com_per = ((float(server_cost)/float(cpu_cores))*float(cpu_cores)) / (int(memory_size)+int(cpu_cores)) \
-              + ((float(server_cost)/float(memory_size))*float(memory_size)) / (int(memory_size)+int(cpu_cores))
-    # com_per = A_CPU * cpu_per_hc + B_CPU * cpu_per_rc + A_MEM * mem_per_hc + B_MEM * mem_per_rc # 综合性价比
+    # com_per = ((float(server_cost)/float(cpu_cores))*float(cpu_cores)) / (int(memory_size)+int(cpu_cores)) \
+              #+ ((float(server_cost)/float(memory_size))*float(memory_size)) / (int(memory_size)+int(cpu_cores))
+    com_per = A_CPU * cpu_per_hc + B_CPU * cpu_per_rc + A_MEM * mem_per_hc + B_MEM * mem_per_rc # 综合性价比
     SERVER_INFO[server_type] = {'cpu_cores': int(cpu_cores), 'memory_size': int(memory_size),
                                 'server_cost': int(server_cost), 'power_cost': int(power_cost),
                                 'server_cpu_memory_a': server_cpu_memory_a,
@@ -117,26 +117,6 @@ def sort_performance(SERVER_INFO:dict) -> list:
     server_info = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
     return server_info
 
-
-
-
-def get_per_vim_infos(vim_name):
-    # VM_INFO[vim_name]["vm_cpu_cores"],VM_INFO[vim_name]["vm_memory_size"],VM_INFO[vim_name]["single_or_double"]
-    return VM_INFO[vim_name]["vm_cpu_cores"],\
-           VM_INFO[vim_name]["vm_memory_size"],\
-           VM_INFO[vim_name]["single_or_double"]
-
-def assign_to_server(per_vim_infos):
-    # 双节点
-    if per_vim_infos[2]:
-        cpu_size = per_vim_infos[0] // 2
-        memory_size = per_vim_infos[1] // 2
-    else:
-        cpu_size = per_vim_infos[0]
-        memory_size = per_vim_infos[1]
-    for server_name,server_infos in SERVER_INFO.items():
-        SERVER_INFO[server_name]["server_cpu_memory_a"]
-
 class ServerRecord:
     """
     记录分配的服务器信息
@@ -148,28 +128,83 @@ class ServerRecord:
         self.b = None
         self.vim_id = {}
 
-def dynamic_allocate_server(server_no):
+def get_per_vim_infos(vim_name):
     """
-    初始化参数，方便进行动态规划
-    :return:
+    获取vim的信息
+    """
+    return VM_INFO[vim_name]["vm_cpu_cores"],\
+           VM_INFO[vim_name]["vm_memory_size"],\
+           VM_INFO[vim_name]["single_or_double"]
+
+def check_can_allocate(server_no,cpu_size,memory_size):
+    """
+    检测此服务器是否满足分配
+    """
+    # print(SERVER_INFO[server_no][1]["server_cpu_memory_a"][0],cpu_size)
+
+    # 刚开始分配只需检测一个结点满足即可
+    if SERVER_INFO[server_no][1]["server_cpu_memory_a"][0] >= cpu_size and SERVER_INFO[server_no][1]["server_cpu_memory_a"][1] >= memory_size:
+        return True
+    else:
+        return False
+
+def dynamic_allocate_server(server_no,used_cpu,used_memory,single_or_double):
+    """
+    分配服务器资源
     """
     server = ServerRecord()
     server.server_name = SERVER_INFO[server_no][0]
     server.num = 1
-    server.a = (SERVER_INFO[server_no][1]["server_cpu_memory_a"][0],SERVER_INFO[server_no][1]["server_cpu_memory_a"][1])
-    server.b = (SERVER_INFO[server_no][1]["server_cpu_memory_b"][0],SERVER_INFO[server_no][1]["server_cpu_memory_b"][1])
+    # print("当前服务器规格")
+    # print(SERVER_INFO[server_no][0],SERVER_INFO[server_no][1]["server_cpu_memory_a"],SERVER_INFO[server_no][1]["server_cpu_memory_b"])
+    if single_or_double:
+        server.a = (SERVER_INFO[server_no][1]["server_cpu_memory_a"][0]-used_cpu,
+                    SERVER_INFO[server_no][1]["server_cpu_memory_a"][1]-used_memory)
+        server.b = (SERVER_INFO[server_no][1]["server_cpu_memory_b"][0]-used_cpu,
+                    SERVER_INFO[server_no][1]["server_cpu_memory_b"][1]-used_memory)
+    else:
+        server.a = (SERVER_INFO[server_no][1]["server_cpu_memory_a"][0] - used_cpu,
+                    SERVER_INFO[server_no][1]["server_cpu_memory_a"][1] - used_memory)
+        server.b = (SERVER_INFO[server_no][1]["server_cpu_memory_b"][0],
+                    SERVER_INFO[server_no][1]["server_cpu_memory_b"][1])
+    # server.vim_id[vim_id] = single_or_double
+    # print("处理后",used_cpu,used_memory,server.a,server.b)
     return server
 
+def dynamic_recycle_server(obj,del_vim_infos,IS_A_OR_B):
+    """
+    回收服务器资源
+    :return:
+    """
+    # print("回收服务器名：",obj.sever_name)
+    recycle_cpu_size  = del_vim_infos[1]
+    recycle_memory_size = del_vim_infos[2]
+    # print("回收服务器名：", obj.server_name,recycle_cpu_size,recycle_memory_size,del_vim_infos[-1],IS_A_OR_B[del_vim_infos[0]])
+    # print(obj.a,obj.b)
+    # 双节点
+    if del_vim_infos[-1]:
+        recycle_cpu_size = recycle_cpu_size //2
+        recycle_memory_size = recycle_memory_size //2
+        obj.a = (obj.a[0] + recycle_cpu_size,obj.a[1] + recycle_memory_size)
+        obj.b = (obj.b[0] + recycle_cpu_size,obj.b[1] + recycle_memory_size)
+    # 单节点要看是在哪个节点上分配的，分情况
+    else:
+        if IS_A_OR_B[del_vim_infos[0]] == "A":
+            obj.a = (obj.a[0] + recycle_cpu_size,obj.a[1] + recycle_memory_size)
+        else:
+            obj.b = (obj.b[0] + recycle_cpu_size, obj.b[1] + recycle_memory_size)
+    # print(obj.a,obj.b)
+
 def dynamic_record_server_costs(server_no,day):
-    # print(SERVER_INFO[0:5])
+    """
+    统计当前费用
+    """
     return SERVER_INFO[server_no][1]["server_cost"]\
            +SERVER_INFO[server_no][1]["power_cost"]*day
-
 
 def operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE,day):
     """
     处理双节点的情况
-    :return:
     """
     for add_double_vim_infos in add_request_double:
         cpu_size = add_double_vim_infos[1] // 2
@@ -177,17 +212,21 @@ def operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE,day):
         IS_NEED_ADD_SERVER = True
         # 检测是否能够分配
         for obj in DSITRIBUTE_SERVER_LIST:
+            # print(add_double_vim_infos[0],cpu_size,memory_size,obj.server_name,obj.a,obj.b)
             # yes
-            if (cpu_size, memory_size) <= obj.a and (cpu_size, memory_size) <= obj.b:
+            if cpu_size <= obj.a[0] and memory_size <= obj.a[1] and cpu_size <= obj.b[0] and memory_size <= obj.b[1]:
+                # print("能分配")
+            # if (cpu_size, memory_size) <= obj.a and (cpu_size, memory_size) <= obj.b:
                 obj.a = (obj.a[0] - cpu_size, obj.a[1] - memory_size)
                 obj.b = (obj.b[0] - cpu_size, obj.b[1] - memory_size)
                 obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
-            # no
-            else:
                 IS_NEED_ADD_SERVER = False
                 break
+
+            # no
         # 需要添加服务器
-        if not IS_NEED_ADD_SERVER:
+        if IS_NEED_ADD_SERVER:
+            # print("需增加")
             CHOOSE_SERVERS_TYPE += 1
             min_cost, add_server_no = float("inf"), 0
             # 选择最优的服务器
@@ -198,33 +237,51 @@ def operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE,day):
                 if min_cost > temp_cost:
                     min_cost = temp_cost
                     add_server_no = server_no
-            server = dynamic_allocate_server(add_server_no)  # 开辟新的服务器
+            # 判断此服务器是否满足分配的要求
+            if not check_can_allocate(add_server_no,cpu_size,memory_size):
+                add_server_no += 1
+                while True:
+                    if check_can_allocate(add_server_no,cpu_size,memory_size):
+                        CHOOSE_SERVERS_TYPE = add_server_no  # 记录下次能够选择的服务器类型
+                        break
+                    add_server_no += 1
+                    # CHOOSE_SERVERS_TYPE = add_server_no  # 记录下次能够选择的服务器类型
+            server = dynamic_allocate_server(add_server_no, cpu_size, memory_size, 1)  # 开辟新的服务器
+            server.vim_id.setdefault(add_double_vim_infos[0],1)  # 添加虚拟机挂件
+            # server.vim_id[add_double_vim_infos[0]] = 1
             DSITRIBUTE_SERVER_LIST.append(server)  # 记录已分配服务器
-    pass
 
 def operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE,day):
     """
     处理单节点的情况
-    :return:
     """
-    for add_double_vim_infos in add_request_single:
-        cpu_size = add_double_vim_infos[1]
-        memory_size = add_double_vim_infos[2]
-        IS_NEED_ADD_SERVER, = True
+    print("开始处理单节点")
+    IS_A_OR_B = {}  # 记录分配的是哪个节点的资源，方便进行del操作
+    for add_single_vim_infos in add_request_single:
+        cpu_size = add_single_vim_infos[1]
+        memory_size = add_single_vim_infos[2]
+        IS_NEED_ADD_SERVER = True
         for obj in DSITRIBUTE_SERVER_LIST:
-            if (cpu_size, memory_size) <= obj.a:
+            if cpu_size <= obj.a[0] and memory_size <= obj.a[1]:
                 # 待修改（是否采用随机选择？）（遍历选择最优？）
                 # 按照性价比的排序进行分配
+                print("A 能分配")
                 obj.a = (obj.a[0] - cpu_size, obj.a[1] - memory_size)
-                obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
-            elif (cpu_size,memory_size) <= obj.b:
+                obj.vim_id[add_single_vim_infos[0]] = add_single_vim_infos[-1]
+                # NODE_A_IS_ASSIGNED  = True
+                IS_A_OR_B.setdefault(add_single_vim_infos[0],"A")
+                IS_NEED_ADD_SERVER = False
+                break
+            elif cpu_size <= obj.b[0] and memory_size <= obj.b[1]:
+                print("B 能分配")
                 obj.b = (obj.b[0] - cpu_size, obj.b[1] - memory_size)
-                obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
-            else:
+                obj.vim_id[add_single_vim_infos[0]] = add_single_vim_infos[-1]
+                IS_A_OR_B.setdefault(add_single_vim_infos[0], "B")
                 IS_NEED_ADD_SERVER = False
                 break
         # 需要添加服务器
-        if not IS_NEED_ADD_SERVER:
+        if IS_NEED_ADD_SERVER:
+            print("需增加")
             CHOOSE_SERVERS_TYPE += 1
             min_cost, add_server_no = float("inf"), 0
             # 选择最优的服务器
@@ -235,31 +292,66 @@ def operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE,day):
                 if min_cost > temp_cost:
                     min_cost = temp_cost
                     add_server_no = server_no
-            server = dynamic_allocate_server(add_server_no)  # 开辟新的服务器
+            if not check_can_allocate(add_server_no,cpu_size,memory_size):
+                add_server_no += 1
+                while True:
+                    if check_can_allocate(add_server_no,cpu_size,memory_size):
+                        CHOOSE_SERVERS_TYPE = add_server_no  # 记录下次能够选择的服务器类型
+                        break
+                    add_server_no += 1
+                # CHOOSE_SERVERS_TYPE = add_server_no  # 记录下次能够选择的服务器类型
+            # CHOOSE_SERVERS_TYPE = add_server_no  # 记录下次能够选择的服务器类型
+            server = dynamic_allocate_server(add_server_no, cpu_size, memory_size, 0)  # 开辟新的服务器
+            server.vim_id.setdefault(add_single_vim_infos[0], 0)  # 添加虚拟机挂件
             DSITRIBUTE_SERVER_LIST.append(server)  # 记录已分配服务器
+
+    return IS_A_OR_B
+
+def opreator_del_vim(del_request,IS_A_OR_B):
+    """
+    删除虚拟机
+    """
+    # temp = 0
+    # for obj in DSITRIBUTE_SERVER_LIST:
+    #     temp += list(obj.vim_id.keys())
+    # print(temp)
+    for del_vim_infos in del_request:
+        # 寻找挂载虚拟机的服务器
+        for obj in DSITRIBUTE_SERVER_LIST:
+            if del_vim_infos[0] in list(obj.vim_id.keys()):
+                # print("...")
+                del obj.vim_id[del_vim_infos[0]]  # 删除挂载的节点
+                dynamic_recycle_server(obj,del_vim_infos,IS_A_OR_B)  # 更新当前服务器的资源
+                break
+
+def test_block():
+    """
+    测试区
+    """
+    print("testBlock")
+    for item in DSITRIBUTE_SERVER_LIST:
+        print(item.server_name,item.vim_id,item.a,item.b)
+        # print(item.a,item.b)
 
 DSITRIBUTE_SERVER_LIST = []  # 保存已经分配的服务器系信息
 
 def distribution():
-    RANK_FLAG = True
+    """
+    分配算法
+    """
     CHOOSE_SERVERS_TYPE = 1  # 当前能选的服务器
     # DSITRIBUTE_SERVER_LIST = []  # 保存已经分配的服务器系信息
-    DSITRIBUTE_SERVER_LIST.append(dynamic_allocate_server(0))  # 初始化服务器
+    DSITRIBUTE_SERVER_LIST.append(dynamic_allocate_server(0,0,0,1))  # 初始化服务器
     SERVER_COST = dynamic_record_server_costs(0,1)  # 记录当前需要服务器的开支（成本+能耗）
     # add_request_single,add_request_double,del_request = dict(),dict(),[]
     for day in range(1,len(OP_LIST)+1):
-        add_request_single, add_request_double, del_request = [], [], []  # add_request
-        # per_total_cpu = sum([VM_INFO[per_request[1]]["vm_cpu_cores"] for per_request in OP_LIST[day] if len(per_request) == 3])
-        # per_total_memory = sum([VM_INFO[per_request[1]]["vm_memory_size"]  for per_request in OP_LIST[day] if (len(per_request) == 3)])
-        # print(per_total_cpu,per_total_memory)
-        # 计算cpu/memory的比值
-        # if (per_total_cpu / per_total_memory) < 1:
-        #     RANK_FLAG = False
-        # 记录每个请求(add[分单、双],del)
+        add_request_single, add_request_double, del_request = [], [], []
+        id_to_name = {}  # 保存vim id 与 name的键值对关系，方便del操作
         for per_request in OP_LIST[day]:
-            # add
-            if len(per_request) == 3:
-                command, vim_name, vim_id = per_request[0], per_request[1], per_request[2]
+            if per_request[0] == "add":
+                vim_name, vim_id =  per_request[1], per_request[2]
+                id_to_name.setdefault(vim_id,vim_name)
+                # print(command,vim_name,vim_id)
                 vim_cpu_size, vim_memory_size, single_or_double = get_per_vim_infos(vim_name)
                 if single_or_double:
                     add_request_double.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
@@ -267,9 +359,11 @@ def distribution():
                     add_request_single.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
             #del
             else:
-                command,vim_id = per_request[0],per_request[1]
-                del_request.append(vim_id)
+                vim_id,vim_name = per_request[1],id_to_name[vim_id]
+                vim_cpu_size, vim_memory_size, single_or_double = get_per_vim_infos(vim_name)
+                del_request.append([vim_id,vim_cpu_size, vim_memory_size, single_or_double])
                 # del_request([vim_id,vim_name])
+        print(len(add_request_single)+len(add_request_double)+len(del_request))
         # True:按cpu排序,False:按memory排序（升序）
         # if RANK_FLAG:
         #     add_request_single = dict(sorted(add_request_single.items(),key=lambda x:x[1][0]))
@@ -279,8 +373,15 @@ def distribution():
         #     add_request_double = dict(sorted(add_request_double.items(), key=lambda x: x[1][1]))
         # 先添加双节点
         # SERVER_COST = []
-        operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE)
-        operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE)
+        operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE,day)  # 双节点添加
+        test_block()
+        IS_A_OR_B = operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE,day)  # 单节点添加
+        test_block()
+        if len(del_request) != 0:
+            opreator_del_vim(del_request,IS_A_OR_B)  # 删除
+        # test_block()
+        import time
+        time.sleep(30)
         
         # for add_double_vim_infos in add_request_double:
         #     cpu_size = add_double_vim_infos[1] // 2
@@ -350,24 +451,12 @@ def main():
                 del_op, vm_id = request_content[1:-1].split(',')
                 operation_read(day, del_op, vm_id=int(vm_id))
 
-    # process
-    # for day in range(int(request_days)):
-    #     need_cpu, need_memory = calculate_capacity(day + 1, OP_LIST, VM_INFO, SURVIVAL_VM)
-    #     # print('-day %d, -need_cpu: %d, -need_mem: %d'% (day+1, need_cpu, need_memory))
     global SERVER_INFO
-    SERVER_INFO= sort_performance(SERVER_INFO)
-    print(SERVER_INFO[0:5][0][1])
-    print(SERVER_INFO[0:5][0][0])
-    # for k,v in SERVER_INFO.items():
-    #     print(k,v)
-    #     import time
-    #     time.sleep(0.5)
-
-    distribution()
+    SERVER_INFO= sort_performance(SERVER_INFO)  # 按照性价比进行排序
     f.close()
+    distribution()  # 1、服务器资源购买分配
 
 
 
 if __name__ == "__main__":
-    print((3,2)<(2,2))
     main()
