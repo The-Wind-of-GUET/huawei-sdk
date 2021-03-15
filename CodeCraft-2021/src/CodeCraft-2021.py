@@ -117,6 +117,9 @@ def sort_performance(SERVER_INFO:dict) -> list:
     server_info = sorted(SERVER_INFO.items(), key=lambda s: s[1]['com_per'])
     return server_info
 
+
+
+
 def get_per_vim_infos(vim_name):
     # VM_INFO[vim_name]["vm_cpu_cores"],VM_INFO[vim_name]["vm_memory_size"],VM_INFO[vim_name]["single_or_double"]
     return VM_INFO[vim_name]["vm_cpu_cores"],\
@@ -145,7 +148,7 @@ class ServerRecord:
         self.b = None
         self.vim_id = {}
 
-def dynamic_record_server_infos(server_no):
+def dynamic_allocate_server(server_no):
     """
     初始化参数，方便进行动态规划
     :return:
@@ -158,23 +161,91 @@ def dynamic_record_server_infos(server_no):
     return server
 
 def dynamic_record_server_costs(server_no,day):
+    # print(SERVER_INFO[0:5])
     return SERVER_INFO[server_no][1]["server_cost"]\
            +SERVER_INFO[server_no][1]["power_cost"]*day
 
 
-def operator_double_vim():
+def operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE,day):
+    """
+    处理双节点的情况
+    :return:
+    """
+    for add_double_vim_infos in add_request_double:
+        cpu_size = add_double_vim_infos[1] // 2
+        memory_size = add_double_vim_infos[2] // 2
+        IS_NEED_ADD_SERVER = True
+        # 检测是否能够分配
+        for obj in DSITRIBUTE_SERVER_LIST:
+            # yes
+            if (cpu_size, memory_size) <= obj.a and (cpu_size, memory_size) <= obj.b:
+                obj.a = (obj.a[0] - cpu_size, obj.a[1] - memory_size)
+                obj.b = (obj.b[0] - cpu_size, obj.b[1] - memory_size)
+                obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
+            # no
+            else:
+                IS_NEED_ADD_SERVER = False
+                break
+        # 需要添加服务器
+        if not IS_NEED_ADD_SERVER:
+            CHOOSE_SERVERS_TYPE += 1
+            min_cost, add_server_no = float("inf"), 0
+            # 选择最优的服务器
+            for server_no in range(CHOOSE_SERVERS_TYPE):
+                server_no = server_no % 79
+                temp_cost = dynamic_record_server_costs(server_no, day)
+                # 取花费小的服务器
+                if min_cost > temp_cost:
+                    min_cost = temp_cost
+                    add_server_no = server_no
+            server = dynamic_allocate_server(add_server_no)  # 开辟新的服务器
+            DSITRIBUTE_SERVER_LIST.append(server)  # 记录已分配服务器
     pass
 
+def operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE,day):
+    """
+    处理单节点的情况
+    :return:
+    """
+    for add_double_vim_infos in add_request_single:
+        cpu_size = add_double_vim_infos[1]
+        memory_size = add_double_vim_infos[2]
+        IS_NEED_ADD_SERVER, = True
+        for obj in DSITRIBUTE_SERVER_LIST:
+            if (cpu_size, memory_size) <= obj.a:
+                # 待修改（是否采用随机选择？）（遍历选择最优？）
+                # 按照性价比的排序进行分配
+                obj.a = (obj.a[0] - cpu_size, obj.a[1] - memory_size)
+                obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
+            elif (cpu_size,memory_size) <= obj.b:
+                obj.b = (obj.b[0] - cpu_size, obj.b[1] - memory_size)
+                obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
+            else:
+                IS_NEED_ADD_SERVER = False
+                break
+        # 需要添加服务器
+        if not IS_NEED_ADD_SERVER:
+            CHOOSE_SERVERS_TYPE += 1
+            min_cost, add_server_no = float("inf"), 0
+            # 选择最优的服务器
+            for server_no in range(CHOOSE_SERVERS_TYPE):
+                server_no = server_no % 79
+                temp_cost = dynamic_record_server_costs(server_no, day)
+                # 取花费小的服务器
+                if min_cost > temp_cost:
+                    min_cost = temp_cost
+                    add_server_no = server_no
+            server = dynamic_allocate_server(add_server_no)  # 开辟新的服务器
+            DSITRIBUTE_SERVER_LIST.append(server)  # 记录已分配服务器
 
-def operator_single_vim():
-    pass
+DSITRIBUTE_SERVER_LIST = []  # 保存已经分配的服务器系信息
+
 def distribution():
     RANK_FLAG = True
     CHOOSE_SERVERS_TYPE = 1  # 当前能选的服务器
-    DSITRIBUTE_SERVER_INFO  = []  # 保存已经分配的服务器系信息
-    # SERVER_COST = []  # 记录当前需要服务器的开支（成本+能耗）
-    DSITRIBUTE_SERVER_INFO.append(dynamic_record_server_infos(0))
-    SERVER_COST = dynamic_record_server_costs(0)
+    # DSITRIBUTE_SERVER_LIST = []  # 保存已经分配的服务器系信息
+    DSITRIBUTE_SERVER_LIST.append(dynamic_allocate_server(0))  # 初始化服务器
+    SERVER_COST = dynamic_record_server_costs(0,1)  # 记录当前需要服务器的开支（成本+能耗）
     # add_request_single,add_request_double,del_request = dict(),dict(),[]
     for day in range(1,len(OP_LIST)+1):
         add_request_single, add_request_double, del_request = [], [], []  # add_request
@@ -184,7 +255,9 @@ def distribution():
         # 计算cpu/memory的比值
         # if (per_total_cpu / per_total_memory) < 1:
         #     RANK_FLAG = False
+        # 记录每个请求(add[分单、双],del)
         for per_request in OP_LIST[day]:
+            # add
             if len(per_request) == 3:
                 command, vim_name, vim_id = per_request[0], per_request[1], per_request[2]
                 vim_cpu_size, vim_memory_size, single_or_double = get_per_vim_infos(vim_name)
@@ -192,7 +265,7 @@ def distribution():
                     add_request_double.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
                 else:
                     add_request_single.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
-                # add_request.append([vim_id,vim_cpu_size,vim_memory_size,single_or_double])
+            #del
             else:
                 command,vim_id = per_request[0],per_request[1]
                 del_request.append(vim_id)
@@ -205,40 +278,41 @@ def distribution():
         #     add_request_single = dict(sorted(add_request_single.items(), key=lambda x: x[1][1]))
         #     add_request_double = dict(sorted(add_request_double.items(), key=lambda x: x[1][1]))
         # 先添加双节点
-        SERVER_COST = []
-        for add_double_vim_infos in add_request_double:
-            cpu_size = add_request_double[1] // 2
-            memory_size = add_request_double[2] // 2
-            IS_NEED_ADD_SERVER = True
-            # if cpu_size < SERVER_INFO[0]
-            for obj in DSITRIBUTE_SERVER_INFO:
-                if (cpu_size,memory_size) < obj.a and (cpu_size,memory_size) < obj.b:
-                    obj.a = (obj.a[0] - cpu_size,obj.a[1] - memory_size)
-                    obj.b = (obj.b[0] - cpu_size,obj.b[1] - memory_size)
-                    obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
-                    IS_NEED_ADD_SERVER = False
-                    break
-            # 需要添加服务器
-            if IS_NEED_ADD_SERVER:
-                CHOOSE_SERVERS_TYPE += 1
-                min_cost,add_server_no = float("inf"),0
-                # 选择最优的服务器
-                for server_no in range(CHOOSE_SERVERS_TYPE):
-                    temp_cost = dynamic_record_server_costs(server_no, day)
-                    if min_cost > temp_cost:
-                        min_cost = temp_cost
-                        add_server_no  = server_no
-                server = dynamic_record_server_infos(server_no)  # 开辟新的服务器
-                DSITRIBUTE_SERVER_INFO.append(server)
-        for add
-                pass
-                pass
-            # command,vim_name,vim_id = per_request[0],per_request[1],per_request[2]
-            # vim_cpu_size,vim_memory_size,single_or_double = get_per_vim_infos(vim_name)
-            # assign_to_server(per_vim_infos)
-            # import time
-            # time.sleep(30)
-            pass
+        # SERVER_COST = []
+        operator_double_vim(add_request_double,CHOOSE_SERVERS_TYPE)
+        operator_single_vim(add_request_single,CHOOSE_SERVERS_TYPE)
+        
+        # for add_double_vim_infos in add_request_double:
+        #     cpu_size = add_double_vim_infos[1] // 2
+        #     memory_size = add_double_vim_infos[2] // 2
+        #     IS_NEED_ADD_SERVER = True
+        #     # if cpu_size < SERVER_INFO[0]
+        #     for obj in DSITRIBUTE_SERVER_INFO:
+        #         if (cpu_size,memory_size) < obj.a and (cpu_size,memory_size) < obj.b:
+        #             obj.a = (obj.a[0] - cpu_size,obj.a[1] - memory_size)
+        #             obj.b = (obj.b[0] - cpu_size,obj.b[1] - memory_size)
+        #             obj.vim_id[add_double_vim_infos[0]] = add_double_vim_infos[-1]
+        #             IS_NEED_ADD_SERVER = False
+        #             break
+        #     # 需要添加服务器
+        #     if IS_NEED_ADD_SERVER:
+        #         CHOOSE_SERVERS_TYPE += 1
+        #         min_cost,add_server_no = float("inf"),0
+        #         # 选择最优的服务器
+        #         for server_no in range(CHOOSE_SERVERS_TYPE):
+        #             server_no = server_no % 79
+        #             temp_cost = dynamic_record_server_costs(server_no, day)
+        #             if min_cost > temp_cost:
+        #                 min_cost = temp_cost
+        #                 add_server_no  = server_no
+        #         server = dynamic_allocate_server(add_server_no)  # 开辟新的服务器
+        #         DSITRIBUTE_SERVER_INFO.append(server)
+        #     # command,vim_name,vim_id = per_request[0],per_request[1],per_request[2]
+        #     # vim_cpu_size,vim_memory_size,single_or_double = get_per_vim_infos(vim_name)
+        #     # assign_to_server(per_vim_infos)
+        #     # import time
+        #     # time.sleep(30)
+        #     pass
 
 def expansion():
     pass
