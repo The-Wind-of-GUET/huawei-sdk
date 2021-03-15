@@ -458,5 +458,6 @@ def main():
     f.close()
     distribution()  # 1、服务器资源购买分配
 
+
 if __name__ == "__main__":
     main()
