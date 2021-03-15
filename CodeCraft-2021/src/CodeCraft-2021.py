@@ -454,7 +454,6 @@ def main():
     global SERVER_INFO
     SERVER_INFO= sort_performance(SERVER_INFO)  # 按照性价比进行排序
     f.close()
-
     distribution()  # 1、服务器资源购买分配
 
 
